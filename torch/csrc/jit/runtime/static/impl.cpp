@@ -119,6 +119,9 @@ void OptimizeGraph(
     // to exposed folders.
 #ifdef FBCODE_CAFFE2
     ReplaceWithCopy(graph);
+    if (opts.use_maybe_copy_variants) {
+      ReplaceWithMaybeCopy(graph);
+    }
     FuseListUnpack(graph);
     EnableStaticRuntimeLayerNorm(graph);
 #endif
@@ -188,7 +191,8 @@ std::pair<std::shared_ptr<Graph>, c10::optional<Module>> PrepareForStaticModule(
           << opts.cleanup_activations << ", enable_out_variant "
           << opts.enable_out_variant << ", optimize_memory "
           << opts.optimize_memory << ", manage_output_tensors "
-          << opts.manage_output_tensors;
+          << opts.manage_output_tensors << ", use_maybe_copy_variants "
+          << opts.use_maybe_copy_variants;
 
   Module module = m.copy();
   if (!is_frozen) {
@@ -1452,6 +1456,7 @@ void StaticRuntime::check_for_memory_leak(bool output_returned) {
       }
       const std::string error_msg = "Output " + c10::to_string(i) + ", %" +
           val->debugName() + " of node " + c10::to_string(n) +
+          " which has kind " + pnode.node()->kind().toQualString() +
           " was not cleaned up";
       if (output_ivalues.count(ival) == 0) {
         // check for intermediates
